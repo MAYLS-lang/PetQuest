@@ -27,7 +27,8 @@ foreach ($messages as $message) {
     $formattedMessages[] = [
         'id' => $message['id'],
         'message' => $message['message'],
-        'sender_name' => $message['sender_name'],
+        'sender_name' => $message['sender_name'] ?? $message['owner_name'] ?? 'Unknown',
+        'sender_type' => $message['message_type'],
         'type' => $message['type'],
         'is_read' => (bool)$message['is_read'],
         'created_at' => $message['created_at'],
@@ -38,4 +39,4 @@ foreach ($messages as $message) {
 echo json_encode([
     'status' => 'success',
     'data' => $formattedMessages
-]); 
+]);

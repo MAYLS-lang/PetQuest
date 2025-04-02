@@ -490,7 +490,7 @@ if ($conversation_id !== null) {
                     <?php if ($conversation_id !== null): ?>
                         <div class="chat-header">
                             <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <h2><?php echo $is_owner ? htmlspecialchars($founder_name) : "Pet Owner"; ?></h2>
+                                <h2><?php echo $is_owner ? htmlspecialchars($founder_name) : htmlspecialchars($conversation['owner_name'] ?? "Unknown Owner"); ?></h2>
                                 <div>
                                     <span><?php echo htmlspecialchars($pet_name); ?></span>
                                     <span class="pet-status status-<?php echo strtolower($pet_status); ?>">
@@ -860,27 +860,73 @@ if ($conversation_id !== null) {
                 channel.bind('new-message', function(data) {
                     console.log('New message received via Pusher:', data);
                     
-                    // Check if this is a message we just sent (avoid duplicates)
                     if (data.id && receivedMessageIds.has(data.id.toString())) {
                         console.log('Message already displayed, skipping');
                         return;
                     }
                     
-                    // Add the message
-                    addNewMessage(data);
+                    const added = addNewMessage(data);
                     
-                    // Play a notification sound for messages not from the current user
+                    // Handle notifications
                     const isOwner = document.querySelector('input[name="is_owner"]')?.value === '1';
                     const messageType = data.type || data.message_type;
                     const isFromCurrentUser = (isOwner && messageType === 'owner') || 
-                                             (!isOwner && messageType === 'founder');
+                                            (!isOwner && messageType === 'founder');
                     
-                    if (!isFromCurrentUser && document.visibilityState !== 'hidden') {
-                        // Could add sound here: playNotificationSound();
-                        // Also could add browser notification
+                    if (added) {
+                        // Mark message as read if window is focused
+                        if (document.visibilityState === 'visible') {
+                            fetch('../messages/notification_service.php', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify({
+                                    conversation_id: conversationId,
+                                    message_id: data.id,
+                                    is_owner: isOwner
+                                })
+                            });
+                        }
+                        
+                        // Show notification if message is from other user and window is not focused
+                        if (!isFromCurrentUser && document.visibilityState !== 'visible') {
+                            const senderName = data.sender_name || 
+                                             (messageType === 'owner' ? 
+                                              document.querySelector('h2')?.textContent : 'Founder');
+                            showNotification(senderName, data.message);
+                        }
                     }
                 });
-                
+
+                // Add visibility change handler
+                document.addEventListener('visibilitychange', function() {
+                    if (document.visibilityState === 'visible') {
+                        const unreadMessages = document.querySelectorAll('.message[data-is-read="false"]');
+                        unreadMessages.forEach(msg => {
+                            const messageId = msg.dataset.messageId;
+                            const messageType = msg.dataset.messageType;
+                            const isOwner = document.querySelector('input[name="is_owner"]')?.value === '1';
+                            
+                            // Only mark other user's messages as read
+                            if ((isOwner && messageType === 'founder') || (!isOwner && messageType === 'owner')) {
+                                fetch('../messages/notification_service.php', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                    },
+                                    body: JSON.stringify({
+                                        conversation_id: conversationId,
+                                        message_id: messageId,
+                                        is_owner: isOwner
+                                    })
+                                });
+                                msg.dataset.isRead = "true";
+                            }
+                        });
+                    }
+                });
+
                 // Initial message load - only needed if Pusher fails
                 const loadInitialMessages = () => {
                     fetch(`../messages/get_messages.php?conversation_id=${conversationId}&is_owner=${document.querySelector('input[name="is_owner"]')?.value || 0}`)
@@ -919,6 +965,101 @@ if ($conversation_id !== null) {
             }
         } catch (error) {
             console.error('Error setting up Pusher:', error);
+        }
+
+        // Add notification functionality
+        let notificationQueue = [];
+        let notificationTimeout = null;
+
+        function showNotification(senderName, message) {
+            if (!("Notification" in window)) {
+                console.log("Browser does not support notifications");
+                return;
+            }
+
+            const notificationData = {
+                title: `New message from ${senderName}`,
+                options: {
+                    body: message,
+                    icon: "../../assets/images/logo.png",
+                    tag: 'chat-notification',
+                    requireInteraction: true
+                }
+            };
+
+            // Queue the notification
+            notificationQueue.push(notificationData);
+
+            // Process queue if not already processing
+            if (!notificationTimeout) {
+                processNotificationQueue();
+            }
+        }
+
+        function processNotificationQueue() {
+            if (notificationQueue.length === 0) {
+                notificationTimeout = null;
+                return;
+            }
+
+            const notification = notificationQueue.shift();
+
+            if (Notification.permission === "granted") {
+                const notif = new Notification(notification.title, notification.options);
+                
+                notif.onclick = function() {
+                    window.focus();
+                    this.close();
+                };
+
+                // Process next notification after 1 second
+                notificationTimeout = setTimeout(processNotificationQueue, 1000);
+            } else if (Notification.permission !== "denied") {
+                Notification.requestPermission().then(function (permission) {
+                    if (permission === "granted") {
+                        processNotificationQueue();
+                    }
+                });
+            }
+        }
+
+        // Update the Pusher event binding with proper notification handling
+        if (conversationId) {
+            // ...existing Pusher initialization code...
+
+            channel.bind('new-message', function(data) {
+                console.log('New message received via Pusher:', data);
+                
+                if (data.id && receivedMessageIds.has(data.id.toString())) {
+                    console.log('Message already displayed, skipping');
+                    return;
+                }
+                
+                const added = addNewMessage(data);
+                
+                // Handle notifications
+                const isOwner = document.querySelector('input[name="is_owner"]')?.value === '1';
+                const messageType = data.type || data.message_type;
+                const isFromCurrentUser = (isOwner && messageType === 'owner') || 
+                                        (!isOwner && messageType === 'founder');
+                
+                if (!isFromCurrentUser && document.visibilityState !== 'visible' && added) {
+                    const senderName = data.sender_name || 
+                                     (messageType === 'owner' ? 
+                                      document.querySelector('h2')?.textContent : 'Founder');
+                    showNotification(senderName, data.message);
+                }
+            });
+
+            // Request notification permission when chat is opened
+            if ("Notification" in window) {
+                if (Notification.permission === "default") {
+                    document.addEventListener('click', function requestNotification() {
+                        Notification.requestPermission();
+                        document.removeEventListener('click', requestNotification);
+                    }, { once: true });
+                }
+            }
         }
     });
     </script>

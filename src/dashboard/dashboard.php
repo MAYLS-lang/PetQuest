@@ -122,66 +122,135 @@ $recent_pets = $stmt->get_result();
                     </div>
                 </div>
 
-                <!-- Recent Pets -->
-                <div class="section-title">
-                    <h2>Recent Activity</h2>
-                </div>
-
-                <?php if ($recent_pets->num_rows === 0): ?>
-                    <div class="empty-state">
-                        <img src="../../assets/images/empty-pets.svg" alt="No pets">
-                        <h3>No Pets Found</h3>
-                        <p>You haven't reported any pets yet. Click the button below to report a missing pet.</p>
-                        <a href="../report/report-pet.php" class="btn btn-primary">Report Missing Pet</a>
-                    </div>
-                <?php else: ?>
-                    <div class="pets-grid">
-                        <?php while ($pet = $recent_pets->fetch_assoc()): ?>
-                            <div class="pet-card fade-in" data-qr="<?php echo SITE_URL . '/src/details/pet-details.php?id=' . $pet['id']; ?>">
-                                <?php if ($pet['image_path']): ?>
-                                    <img src="<?php echo SITE_URL . '/' . htmlspecialchars($pet['image_path']); ?>" 
-                                         alt="<?php echo htmlspecialchars($pet['name']); ?>" class="pet-image">
-                                <?php else: ?>
-                                    <div class="pet-image-placeholder">
-                                        <i class="fas fa-paw"></i>
+                <div class="dashboard-content-grid">
+                    <!-- Memories Section -->
+                    <div class="memories-creation-section">
+                        <div class="create-memory-card">
+                            <div class="memory-header">
+                                <img src="<?php echo !empty($user['profile_picture']) ? '../../uploads/profile/' . htmlspecialchars($user['profile_picture']) : '../../assets/images/default-profile.png'; ?>" 
+                                     alt="Profile Picture" 
+                                     class="user-avatar-small">
+                                <span class="memory-prompt">Share a pet memory...</span>
+                            </div>
+                            <form action="../profile/upload_memory.php" method="POST" enctype="multipart/form-data" class="memory-form">
+                                <textarea name="description" placeholder="Write something about this memory..."></textarea>
+                                <div class="memory-actions">
+                                    <div class="memory-upload">
+                                        <label for="memory_image">
+                                            <i class="fas fa-image"></i> Add Photo
+                                        </label>
+                                        <input type="file" id="memory_image" name="memory_image" accept="image/*" hidden>
                                     </div>
-                                <?php endif; ?>
-                                
-                                <div class="pet-info">
-                                    <span class="pet-status status-<?php echo strtolower($pet['status']); ?>">
-                                        <?php echo ucfirst($pet['status']); ?>
-                                    </span>
-                                    <h3><?php echo htmlspecialchars($pet['name']); ?></h3>
-                                    <?php if ($pet['status'] === 'missing' && $pet['last_seen_date']): ?>
-                                        <p><i class="fas fa-calendar"></i> Last seen: <?php echo date('M j, Y', strtotime($pet['last_seen_date'])); ?></p>
-                                    <?php endif; ?>
-                                    <?php if ($pet['status'] === 'missing' && $pet['last_seen_location']): ?>
-                                        <p><i class="fas fa-map-marker-alt"></i> <?php echo htmlspecialchars($pet['last_seen_location']); ?></p>
-                                    <?php endif; ?>
-                                    <p><i class="fas fa-comments"></i> <?php echo $pet['message_count']; ?> messages</p>
-                                    
-                                    <div class="pet-actions">
-                                        <a href="../details/pet-details.php?id=<?php echo $pet['id']; ?>" class="btn btn-primary">
-                                            <i class="fas fa-eye"></i> View Details
-                                        </a>
-                                        <?php if ($pet['status'] === 'missing'): ?>
-                                            <button class="btn btn-success mark-found" data-pet-id="<?php echo $pet['id']; ?>">
-                                                <i class="fas fa-check"></i> Mark as Found
-                                            </button>
-                                        <?php endif; ?>
-                                    </div>
-                                </div>
-
-                                <div class="qr-code-container">
-                                    <div id="qr-<?php echo $pet['id']; ?>"></div>
-                                    <button class="btn btn-secondary download-qr" data-pet-id="<?php echo $pet['id']; ?>">
-                                        <i class="fas fa-qrcode"></i> Save QR
+                                    <button type="submit" name="upload_memory">
+                                        <i class="fas fa-share"></i>
+                                        Share Memory
                                     </button>
                                 </div>
+                                <div id="image-preview" class="image-preview"></div>
+                            </form>
+
+                            <div class="memory-success" id="memorySuccess">
+                                Memory shared successfully! 🎉
                             </div>
-                        <?php endwhile; ?>
+                        </div>
+                        
+                        <!-- Recent Memories -->
+                        <div class="recent-memories">
+                            <?php
+                            $memories_stmt = $conn->prepare("
+                                SELECT m.*, u.name, u.profile_picture 
+                                FROM memories m 
+                                JOIN users u ON m.user_id = u.id 
+                                ORDER BY m.created_at DESC 
+                                LIMIT 5
+                            ");
+                            $memories_stmt->execute();
+                            $memories = $memories_stmt->get_result();
+                            
+                            while ($memory = $memories->fetch_assoc()):
+                            ?>
+                                <div class="memory-post">
+                                    <div class="memory-post-header">
+                                        <img src="<?php echo !empty($memory['profile_picture']) ? '../../uploads/profile/' . htmlspecialchars($memory['profile_picture']) : '../../assets/images/default-profile.png'; ?>" 
+                                             alt="Profile" 
+                                             class="user-avatar-small">
+                                        <div class="memory-post-info">
+                                            <span class="memory-author"><?php echo htmlspecialchars($memory['name']); ?></span>
+                                            <span class="memory-time"><?php echo date('M d, Y', strtotime($memory['created_at'])); ?></span>
+                                        </div>
+                                    </div>
+                                    <p class="memory-description"><?php echo htmlspecialchars($memory['description']); ?></p>
+                                    <?php if (!empty($memory['image_path'])): ?>
+                                        <img src="../../uploads/memories/<?php echo htmlspecialchars($memory['image_path']); ?>" 
+                                             alt="Memory" 
+                                             class="memory-image">
+                                    <?php endif; ?>
+                                </div>
+                            <?php endwhile; ?>
+                        </div>
                     </div>
-                <?php endif; ?>
+
+                    <!-- Slideshow Section -->
+                    <div class="slideshow-section">
+                        <div class="slideshow-header">
+                            <h3>Recent Activity</h3>
+                        </div>
+                        <div class="slideshow-container">
+                            <?php if ($recent_pets->num_rows === 0): ?>
+                                <div class="slide active">
+                                    <div class="slide-content empty-state">
+                                        <img src="../../assets/images/empty-pets.svg" alt="No pets">
+                                        <h4>No Pets Found</h4>
+                                        <p>You haven't reported any pets yet.</p>
+                                        <a href="../report/report-pet.php" class="btn btn-primary">Report Missing Pet</a>
+                                    </div>
+                                </div>
+                            <?php else: ?>
+                                <?php 
+                                $index = 0;
+                                while ($pet = $recent_pets->fetch_assoc()): 
+                                ?>
+                                    <div class="slide <?php echo $index === 0 ? 'active' : ''; ?>">
+                                        <div class="slide-content">
+                                            <?php if ($pet['image_path']): ?>
+                                                <img src="<?php echo SITE_URL . '/' . htmlspecialchars($pet['image_path']); ?>" 
+                                                     alt="<?php echo htmlspecialchars($pet['name']); ?>" 
+                                                     class="slide-image">
+                                            <?php endif; ?>
+                                            <div class="slide-info">
+                                                <span class="slide-status status-<?php echo strtolower($pet['status']); ?>">
+                                                    <?php echo ucfirst($pet['status']); ?>
+                                                </span>
+                                                <h4><?php echo htmlspecialchars($pet['name']); ?></h4>
+                                                <?php if ($pet['status'] === 'missing' && $pet['last_seen_location']): ?>
+                                                    <p><i class="fas fa-map-marker-alt"></i> <?php echo htmlspecialchars($pet['last_seen_location']); ?></p>
+                                                <?php endif; ?>
+                                                <div class="slide-actions">
+                                                    <a href="../details/pet-details.php?id=<?php echo $pet['id']; ?>" class="btn btn-primary">
+                                                        View Details
+                                                    </a>
+                                                    <?php if ($pet['status'] === 'missing'): ?>
+                                                        <button class="btn btn-success mark-found" data-pet-id="<?php echo $pet['id']; ?>">
+                                                            <i class="fas fa-check"></i> Mark as Found
+                                                        </button>
+                                                    <?php endif; ?>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                <?php 
+                                $index++;
+                                endwhile; 
+                                ?>
+                                <div class="slideshow-nav">
+                                    <?php for($i = 0; $i < $recent_pets->num_rows; $i++): ?>
+                                        <div class="slide-dot <?php echo $i === 0 ? 'active' : ''; ?>" data-index="<?php echo $i; ?>"></div>
+                                    <?php endfor; ?>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
             </div>
         </main>
     </div>
@@ -237,8 +306,77 @@ $recent_pets = $stmt->get_result();
         // Initialize QR codes
         initQRCodes();
         
+        // Initialize slideshow
+        initSlideshow();
+        
         // Rest of your existing JavaScript...
+    });
+
+    // Updated slideshow initialization
+    function initSlideshow() {
+        const slides = document.querySelectorAll('.slide');
+        const dots = document.querySelectorAll('.slide-dot');
+        let currentSlide = 0;
+        
+        if (slides.length === 0) return;
+
+        function showSlide(index) {
+            slides.forEach(slide => slide.classList.remove('active'));
+            dots.forEach(dot => dot.classList.remove('active'));
+            slides[index].classList.add('active');
+            dots[index].classList.add('active');
+            currentSlide = index;
+        }
+
+        // Auto advance slides
+        function autoAdvance() {
+            const nextSlide = (currentSlide + 1) % slides.length;
+            showSlide(nextSlide);
+        }
+
+        // Initialize first slide
+        showSlide(0);
+
+        // Add click handlers for dots
+        dots.forEach((dot, index) => {
+            dot.addEventListener('click', () => showSlide(index));
+        });
+
+        // Start auto-advance timer if there's more than one slide
+        if (slides.length > 1) {
+            setInterval(autoAdvance, 5000);
+        }
+    }
+
+    // Add this to handle memory upload success
+    function showSuccessMessage() {
+        const success = document.getElementById('memorySuccess');
+        success.style.display = 'block';
+        setTimeout(() => {
+            success.style.display = 'none';
+        }, 3000);
+    }
+
+    document.querySelector('.memory-form').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        try {
+            const formData = new FormData(this);
+            const response = await fetch(this.action, {
+                method: 'POST',
+                body: formData
+            });
+            
+            if (response.ok) {
+                showSuccessMessage();
+                this.reset();
+                document.getElementById('image-preview').style.display = 'none';
+                // Optionally reload memories
+                location.reload();
+            }
+        } catch (error) {
+            console.error('Error:', error);
+        }
     });
     </script>
 </body>
-</html> 
+</html>

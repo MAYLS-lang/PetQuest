@@ -5,31 +5,41 @@ function initQRCodes() {
         if (!qrContainer) return;
         
         const qrElement = qrContainer.querySelector('div');
+        if (!qrElement) return;
+        
         const qrUrl = element.dataset.qr;
         
-        // Create QR code
-        new QRCode(qrElement, {
-            text: qrUrl,
-            width: 100,
-            height: 100,
-            colorDark: "#000000",
-            colorLight: "#ffffff",
-            correctLevel: QRCode.CorrectLevel.H
-        });
+        // Clear existing content
+        qrElement.innerHTML = '';
+        
+        // Create QR code using QR Server API
+        const qrImg = document.createElement('img');
+        qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(qrUrl)}&size=150x150&margin=10`;
+        qrImg.alt = 'QR Code';
+        qrImg.style.width = '100px';
+        qrImg.style.height = '100px';
+        
+        // Add loading indicator
+        qrImg.style.opacity = '0';
+        qrImg.onload = () => {
+            qrImg.style.opacity = '1';
+        };
+        
+        qrElement.appendChild(qrImg);
         
         // Add download functionality
         const downloadBtn = qrContainer.querySelector('.download-qr');
         if (downloadBtn) {
             downloadBtn.addEventListener('click', () => {
-                const canvas = qrElement.querySelector('canvas');
-                const image = canvas.toDataURL("image/png");
+                // Use higher resolution for download
+                const downloadUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(qrUrl)}&size=300x300&margin=10`;
                 const link = document.createElement('a');
-                link.href = image;
-                link.download = 'pet-qr-code.png';
+                link.href = downloadUrl;
+                link.download = `pet-qr-code-${element.dataset.petId}.png`;
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
             });
         }
     });
-} 
+}

@@ -11,7 +11,9 @@ CREATE TABLE IF NOT EXISTS users (
     id INT PRIMARY KEY AUTO_INCREMENT,
     name VARCHAR(255) NOT NULL,
     email VARCHAR(255) NOT NULL UNIQUE,
+    bio TEXT NULL,
     password VARCHAR(255) NOT NULL,
+    profile_picture VARCHAR(255) DEFAULT 'default-profile.png',
     phone VARCHAR(20),
     address TEXT,
     role ENUM('admin', 'user') DEFAULT 'user',
@@ -140,6 +142,16 @@ CREATE TABLE IF NOT EXISTS password_resets (
     INDEX idx_token (token)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- Memories table
+CREATE TABLE memories (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT NOT NULL,
+    image_path VARCHAR(255) NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- Indexes for better performance
 CREATE INDEX idx_pets_owner ON pets(owner_id);
 CREATE INDEX idx_pets_status ON pets(status);
@@ -151,4 +163,4 @@ CREATE INDEX idx_conversations_owner_id ON conversations(owner_id);
 CREATE INDEX idx_founder_messages_conversation ON founder_messages(conversation_id);
 CREATE INDEX idx_owner_messages_conversation ON owner_messages(conversation_id);
 CREATE INDEX idx_notifications_user ON notifications(user_id);
-CREATE INDEX idx_notifications_type ON notifications(type); 
+CREATE INDEX idx_notifications_type ON notifications(type);

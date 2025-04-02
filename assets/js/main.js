@@ -20,29 +20,6 @@ function togglePassword(inputId) {
     }
 }
 
-// QR Code generation
-function generateQRCode(elementId, data) {
-    const qr = new QRCode(document.getElementById(elementId), {
-        text: data,
-        width: 128,
-        height: 128,
-        colorDark: "#000000",
-        colorLight: "#ffffff",
-        correctLevel: QRCode.CorrectLevel.H
-    });
-}
-
-// Initialize QR codes on pet cards
-function initQRCodes() {
-    document.querySelectorAll('[data-qr]').forEach(element => {
-        const qrData = element.getAttribute('data-qr');
-        const qrElement = element.getAttribute('data-qr-element');
-        if (qrData && qrElement) {
-            generateQRCode(qrElement, qrData);
-        }
-    });
-}
-
 // Form validation
 function validateForm(formId) {
     const form = document.getElementById(formId);
@@ -167,11 +144,6 @@ function updateRelativeTimes() {
 
 // Document ready
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialize QR codes if the library is loaded
-    if (typeof QRCode !== 'undefined') {
-        initQRCodes();
-    }
-    
     // Initialize Bootstrap components if Bootstrap is loaded
     if (typeof bootstrap !== 'undefined') {
         initTooltips();
@@ -187,4 +159,4 @@ document.addEventListener('DOMContentLoaded', function() {
     if (menuToggle) {
         menuToggle.addEventListener('click', toggleMobileMenu);
     }
-}); 
+});
